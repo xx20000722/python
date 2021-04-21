@@ -31,11 +31,11 @@ class make_all_json(object):
                 max_ = max([len(date), len(quezheng), len(ziyu), len(siwang), len(xinzhen)])
                 a = [len(date), len(quezheng), len(ziyu), len(siwang), len(xinzhen)].index(min_)
                 if a == 1:
-                    xinzhen += [0] * (max_ - min_)
+                    quezheng += [quezheng[-1]] * (max_ - min_)
                 if a == 2:
-                    quezheng += [0] * (max_ - min_)
+                    ziyu += [ziyu[-1]] * (max_ - min_)
                 if a == 3:
-                    siwang += [0] * (max_ - min_)
+                    siwang += [siwang[-1]] * (max_ - min_)
                 if a == 4:
                     xinzhen += [0] * (max_ - min_)
             a = False
