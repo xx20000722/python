@@ -131,10 +131,10 @@ def evey_data(ls):
 
 """
 执行函数
-引用了栈的概念，达到了全部成功爬取才会统一进行保存
+引用了队列的概念，达到了全部成功爬取才会统一进行保存
 """
 def main():
-    print("【INFO】：初始化 对列 中...")
+    print("【INFO】：初始化 队列 中...")
     q_a = multiprocessing.Manager().Queue()
     q_json = multiprocessing.Manager().Queue()
     hh = PC_set()
