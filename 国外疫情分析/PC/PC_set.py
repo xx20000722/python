@@ -2,12 +2,13 @@
 # 爬虫代码
 
 import requests
-from selenium.webdriver import ChromeOptions, Chrome
+from selenium.webdriver import Chrome
 import csv
 import random
 from bs4 import BeautifulSoup
 import json
 import time
+import multiprocessing
 
 class PC_set(object):
     """
@@ -58,6 +59,7 @@ class PC_set(object):
         try:
             date = Chrome("./PC/chromedriver.exe")
             date.get(url)
+            time.sleep(5)
             button = date.find_element_by_xpath("//*[@id='foreignTable']/div")
             button.click()
             html = date.page_source
@@ -81,27 +83,8 @@ class PC_set(object):
             date.quit()
             return True
         except Exception as E:
-            print(f"【ERROR】: {E}")
+            print(f"【ERROR】(data_all): {E}")
             return False
-
-    # 对每个地区的json进行爬取保存
-    def evey_data(self, url):
-        a = True
-        for i in self.name_ls:
-            try:
-                html = requests.get(url.format(i), headers=random.choice(self.headers), params=random.choice(self.https_proxies))
-                self.json_text[i] = json.loads(html.text[24:-2])
-                # 防止反爬
-                time.sleep(2)
-            except Exception as E:
-                print(f"【ERROR】(PC_set.py) not get name {i} : {E}")
-                a = False
-                break
-        if a:
-            for i in self.json_text.keys():
-                self.save(f"./Data/json_all/{i}.json", "json", self.json_text[i])
-        return a
-
 
     """
     函数功能：保存爬取的数据到本地数据库
@@ -120,16 +103,60 @@ class PC_set(object):
             with open(name, "w+") as f:
                 json.dump(text, f)
 
+# 对每个地区的json进行爬取保存
+def evey_data(ls):
+    url, name, q1, q2 = ls[0], ls[1], ls[2], ls[3]
+    hh = PC_set()
+    json_text = {}
+    print(f"【INFO】:正在爬取 {name} 的json文件...")
+    a = True
+    try:
+        html = requests.get(url, headers=random.choice(hh.headers), params=random.choice(hh.https_proxies))
+        json_text = json.loads(html.text[24:-2])
+        # 防止反爬
+        time.sleep(3)
+    except Exception as E:
+        print("--"*32)
+        print(f"【ERROR】(PC_set.py) : {E} name={name}")
+        print("--" * 32)
+        a = False
+    if json_text["status"] != 0:
+        a = False
+        print("--" * 32)
+        print(f"【ERROR】:保存 {name}.json文件失败！")
+        print("--" * 32)
+    if a:
+        q2.put(json_text)
+    q1.put(a)
+
 """
 执行函数
+引用了栈的概念，达到了全部成功爬取才会统一进行保存
 """
 def main():
+    print("【INFO】：初始化 对列 中...")
+    q_a = multiprocessing.Manager().Queue()
+    q_json = multiprocessing.Manager().Queue()
     hh = PC_set()
     a = hh.date_set("https://voice.baidu.com/act/newpneumonia/newpneumonia/?from=osari_aladin_banner")
     if a:
-        a = hh.evey_data("https://voice.baidu.com/newpneumonia/getv2?target=trend&isCaseIn=0&from=mola-virus&area={}&stage=publish&callback=jsonp_1618983981536_386")
+        url = "https://voice.baidu.com/newpneumonia/getv2?target=trend&isCaseIn=0&from=mola-virus&area={}&stage=publish&callback=jsonp_1618983981536_386"
+        ls_url = []
+        for i in hh.name_ls:
+            ls_url.append([url.format(i), i, q_a, q_json])
+        print("【INFO】创建进程池...")
+        pool = multiprocessing.Pool(processes=4)
+        pool.map(evey_data, ls_url)
+        pool.close()
+        for i in range(len(hh.name_ls)):
+            a = a and q_a.get()
+        if a:
+            for i in range(len(hh.name_ls)):
+                data_ = q_json.get()
+                hh.save(f"./Data/json_all/{data_['data'][0]['name']}.json", "json", data_)
+                print(f"【OVER】:保存 {data_['data'][0]['name']}.json文件成功！")
     return a
 
 # 测试
 if __name__ == '__main__':
-    main()
+    print(main())
